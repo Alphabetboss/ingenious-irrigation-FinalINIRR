@@ -1,17 +1,23 @@
-# flake8: noqa: F401
-r"""Quantized Modules.
+import cv2
+import numpy as np
 
-This file is in the process of migration to `torch/ao/nn/quantized`, and
-is kept here for compatibility while the migration process is ongoing.
-If you are adding a new entry/functionality, please, add it to the
-appropriate file under the `torch/ao/nn/quantized/modules`,
-while adding an import statement here.
-"""
+def calculate_greenness(image):
+    """NDVI-like approximation for greenness score"""
+    image = image.astype("float32")
+    B, G, R = cv2.split(image)
+    greenness = (2 * G - R - B) / (2 * G + R + B + 1e-6)
+    greenness = np.clip(greenness, -1, 1)
+    return greenness
 
-from torch.ao.nn.quantized.modules.utils import (
-    _hide_packed_params_repr,
-    _ntuple_from_first,
-    _pair_from_first,
-    _quantize_weight,
-    WeightedQuantizedModule,
-)
+def calculate_health_score(greenness_map):
+    avg_greenness = np.mean(greenness_map)
+    if avg_greenness < -0.2:
+        return 0  # Very poor (dead/brown)
+    elif avg_greenness < 0:
+        return 3  # Poor (mushy/muddy)
+    elif avg_greenness < 0.2:
+        return 5  # Moderate (stressed)
+    elif avg_greenness < 0.5:
+        return 7  # Good
+    else:
+        return 10  # Excellent
