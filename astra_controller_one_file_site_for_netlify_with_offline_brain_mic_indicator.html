@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Astra — Ingenious Irrigation</title>
+<style>
+:root{
+  --bg:#0b0c0c; --chrome1:#1c1f22; --chrome2:#2a2e33; --chrome3:#3a3f45;
+  --neon:#39ff14; --neon-soft:#92ff7a; --text:#e6f2e6; --muted:#9fb3a7;
+}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Segoe UI,Roboto,Arial,sans-serif}
+.chrome-bg{position:fixed;inset:0;z-index:-2;background:
+  radial-gradient(1200px 800px at 10% 10%, #4b4f56 0%, transparent 60%),
+  radial-gradient(1000px 600px at 90% 20%, #5f676f 0%, transparent 60%),
+  linear-gradient(120deg,var(--chrome1),var(--chrome2) 40%,var(--chrome3) 80%);
+  filter:saturate(110%) contrast(105%);}
+.wrap{max-width:1100px;margin:24px auto;padding:0 16px;display:grid;grid-template-columns:2fr 1fr;gap:16px}
+@media (max-width:1000px){.wrap{grid-template-columns:1fr}}
+.panel{background:linear-gradient(180deg,rgba(255,255,255,0.06),rgba(0,0,0,0.45));
+  border:1px solid rgba(255,255,255,0.12); border-radius:16px; padding:16px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.2), 0 6px 30px rgba(0,0,0,.35);} 
+.hero h1{margin:.25rem 0 .5rem; font-size:1.6rem}
+.small{color:var(--muted);font-size:.9rem}
+.btn{padding:.6rem 1rem;border-radius:12px;border:none;cursor:pointer;font-weight:700;color:#111;
+  background:linear-gradient(180deg,#c9ffd4,#6fff9b); box-shadow:0 0 0 2px var(--neon) inset,0 0 18px var(--neon);} 
+.btn:disabled{opacity:.6;cursor:not-allowed}
+.row{display:flex;gap:.5rem;flex-wrap:wrap;margin:.5rem 0}
+.tag{display:inline-block;padding:.25rem .5rem;margin:.25rem;border:1px solid rgba(57,255,20,.35);
+  border-radius:8px;background:rgba(57,255,20,.08);color:#aaffaa;font-size:.8rem}
+.input-row{display:flex;gap:.5rem;margin-top:.5rem}
+input[type="text"]{flex:1;background:#0f1214;color:var(--text);border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:.6rem}
+
+#stage{height:540px;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.12)}
+.stage-wrap{position:relative}
+#bubble{position:absolute;left:16px;bottom:16px;max-width:52%;padding:.6rem .8rem;border-radius:10px;
+  background:rgba(0,0,0,.65);border:1px solid rgba(57,255,20,.35); color:#aaffaa; display:none}
+
+/* Mic indicator */
+.badge{padding:.25rem .5rem; border:1px solid rgba(57,255,20,.35); border-radius:8px; background:rgba(57,255,20,.08)}
+.mic{display:inline-flex;align-items:center;gap:.4rem}
+.mic .dot{width:9px;height:9px;border-radius:50%;background:#6b7f72;box-shadow:0 0 0 0 rgba(57,255,20,0)}
+.mic.listening .dot{background:var(--neon); box-shadow:0 0 10px var(--neon); animation:pulse 1.2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(57,255,20,.7)}70%{box-shadow:0 0 0 10px rgba(57,255,20,0)}100%{box-shadow:0 0 0 0 rgba(57,255,20,0)}}
+
+/* Modal */
+.modal{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:10;}
+.modal.show{display:flex}
+.modal .backdrop{position:absolute; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(3px);} 
+.modal .card{position:relative; z-index:1; width:min(860px, 92vw);
+  background:linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.45));
+  border:1px solid rgba(255,255,255,0.12); border-radius:16px; padding:16px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.2), 0 20px 60px rgba(0,0,0,.55);} 
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+@media (max-width:900px){ .grid2{ grid-template-columns:1fr; } }
+.field{display:flex; gap:.5rem; align-items:center; margin:.5rem 0}
+</style>
+</head>
+<body>
+<div class="chrome-bg"></div>
+<div class="wrap">
+  <section class="panel hero">
+    <h1>Astra — your pro sprinkler tech</h1>
+    <div class="small">Full of life, loves plants, and runs your Ingenious Irrigation controller like a champ.</div>
+    <div class="stage-wrap">
+      <div id="stage"></div>
+      <div id="bubble"></div>
+    </div>
+    <div class="row">
+      <button id="btnSpeak" class="btn">🔊 Speak</button>
+      <button id="btnListen" class="btn">🎙️ Hold to Talk</button>
+      <span id="micBadge" class="badge mic"><span class="dot"></span><span id="micText">idle</span></span>
+      <button id="btnWave" class="btn">👋 Wave</button>
+      <button id="btnInteract" class="btn">🧠 Interact (Train)</button>
+      <span class="tag">visor • neon seams • chrome jacket</span>
+    </div>
+    <div class="input-row">
+      <input id="txtAsk" type="text" placeholder="Ask Astra about watering, leaks, or lawn health…" />
+      <button id="btnAsk" class="btn">Ask</button>
+    </div>
+    <div class="small">Tip: If backend URLs aren’t running, Astra answers with a built‑in “offline brain”.</div>
+  </section>
+
+  <aside class="panel">
+    <h2>Teach Astra</h2>
+    <div class="input-row">
+      <input id="txtTeach" type="text" placeholder='Fact: St. Augustine likes ~1–1.5 inches/week in Houston.' />
+      <button id="btnTeach" class="btn">Save Fact</button>
+    </div>
+    <div class="small">Optional endpoints (when you have them):
+      <code>camera</code> at <code>http://127.0.0.1:5051</code>, <code>ask</code> at <code>http://127.0.0.1:5052/ask</code>, <code>teach</code> at <code>http://127.0.0.1:5054/teach</code>, <code>pair</code> at <code>http://127.0.0.1:5055/pair</code>.
+      Works fine without them.
+    </div>
+  </aside>
+</div>
+
+<!-- Interact modal -->
+<div id="modal" class="modal">
+  <div class="backdrop"></div>
+  <div class="card">
+    <div class="closex" id="closeModal" style="position:absolute; right:12px; top:8px; cursor:pointer; color:#aaffaa">✕</div>
+    <h3>Train with Audio + Video</h3>
+    <div class="grid2">
+      <section>
+        <h4>Audio (speak a fact)</h4>
+        <div class="field">
+          <button id="btnHoldToTrain" class="btn">🎙️ Hold to Train</button>
+          <span class="badge" id="asrStatus">idle</span>
+        </div>
+        <div class="input-row">
+          <input id="txtTranscript" type="text" placeholder="Transcript appears here…" />
+          <button id="btnSaveTranscript" class="btn">Save to KB</button>
+        </div>
+        <div class="small">Saves to <code>/teach</code> when available.</div>
+      </section>
+      <section>
+        <h4>Video (snapshot + label)</h4>
+        <div class="input-row">
+          <input id="txtLabel" type="text" placeholder="e.g., oversaturated / leak / dry_patch" />
+          <button id="btnSnapshot" class="btn">Snapshot + Label</button>
+        </div>
+      </section>
+    </div>
+    <hr style="border-color:rgba(255,255,255,0.1); margin:16px 0">
+    <section>
+      <h4>One‑Click Pair (audio + snapshot)</h4>
+      <div class="input-row">
+        <input id="txtPairLabel" type="text" placeholder="Label for snapshot (e.g., oversaturated)" />
+        <button id="btnPair" class="btn">Save Pair</button>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- Three + extras -->
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://unpkg.com/three@0.160.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://unpkg.com/three@0.160.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://unpkg.com/three@0.160.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://unpkg.com/three@0.160.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script>
+(() => {
+  // ---------- Config ----------
+  const USE_BACKEND = false; // set true when your APIs are live
+  const CAMERA_BASE = 'http://127.0.0.1:5051';
+  const ASK_URL     = 'http://127.0.0.1:5052/ask';
+  const TEACH_URL   = 'http://127.0.0.1:5054/teach';
+  const PAIR_URL    = 'http://127.0.0.1:5055/pair';
+
+  // ---------- Scene ----------
+  const stage = document.getElementById('stage');
+  const bubble = document.getElementById('bubble');
+
+  const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true});
+  renderer.setSize(stage.clientWidth, 540); stage.appendChild(renderer.domElement);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(40, stage.clientWidth/540, 0.1, 100);
+  camera.position.set(0.5, 1.5, 2.6);
+
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; controls.target.set(0,1.35,0); controls.update();
+
+  // Lights
+  const hemi = new THREE.HemisphereLight(0xcdefff, 0x202020, 1.15); scene.add(hemi);
+  const key = new THREE.DirectionalLight(0x39ff14, 2.0); key.position.set(3,4,2); scene.add(key);
+  const rim = new THREE.DirectionalLight(0x00d3ff, 1.1); rim.position.set(-3,2,-2); scene.add(rim);
+
+  // Bloom
+  const composer = new THREE.EffectComposer(renderer);
+  const renderPass = new THREE.RenderPass(scene, camera);
+  const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(stage.clientWidth, 540), 0.9, 0.8, 0.85);
+  composer.addPass(renderPass); composer.addPass(bloomPass);
+
+  // ---------- Load Astra (with graceful fallback) ----------
+  const loader = new THREE.GLTFLoader();
+  let mixer=null, avatar=null;
+
+  loader.load('./avatar_astra.glb', (gltf) => {
+    avatar = gltf.scene; avatar.position.set(0,-1.0,0); scene.add(avatar);
+    if (gltf.animations && gltf.animations.length){ mixer = new THREE.AnimationMixer(avatar); mixer.clipAction(gltf.animations[0]).play(); }
+  }, undefined, () => { // Fallback when model missing
+    const geo = new THREE.TorusKnotGeometry(0.7, 0.18, 160, 24);
+    const mat = new THREE.MeshStandardMaterial({metalness:1, roughness:0.25, envMapIntensity:1.1, color:0xbfd4c8, emissive:0x072b13, emissiveIntensity:0.25});
+    avatar = new THREE.Mesh(geo, mat); avatar.position.set(0,0.2,0); scene.add(avatar);
+  });
+
+  // Visor plane (ambient animation)
+  const visorGeo = new THREE.PlaneGeometry(0.32, 0.12, 1, 1);
+  const visorMat = new THREE.ShaderMaterial({ transparent:true, blending:THREE.AdditiveBlending, depthWrite:false,
+    uniforms:{ uTime:{value:0}, uColor:{value:new THREE.Color(0x39ff14)} },
+    vertexShader:`varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+    fragmentShader:`uniform float uTime; uniform vec3 uColor; varying vec2 vUv; void main(){ float scan=.5+.5*sin((vUv.y*80.)+uTime*3.); float ret = smoothstep(.48,.49,abs(vUv.x-.5)) + smoothstep(.48,.49,abs(vUv.y-.5)); float glow = max(scan*.25, ret*.8); gl_FragColor = vec4(uColor, glow); }`
+  });
+  const visor = new THREE.Mesh(visorGeo, visorMat); visor.position.set(0,1.55,0.07); scene.add(visor);
+
+  function resize(){ renderer.setSize(stage.clientWidth, 540); camera.aspect = stage.clientWidth/540; camera.updateProjectionMatrix(); bloomPass.setSize(stage.clientWidth, 540); }
+  window.addEventListener('resize', resize);
+
+  function showText(s){ bubble.textContent = s; bubble.style.display='block'; clearTimeout(showText._t); showText._t = setTimeout(()=> bubble.style.display='none', 4500); }
+
+  // ---------- Voice ----------
+  function speak(text){
+    try{
+      const u = new SpeechSynthesisUtterance(text); u.rate=1.02; u.pitch=1.05; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
+    }catch(e){ /* ignore */ }
+    showText(text);
+  }
+
+  // Offline brain (regex intents)
+  function brainReply(q){
+    const t=q.toLowerCase();
+    if(/status|running|zones?/.test(t)) return "All zones idle. Soil ~42%. Next run 5:00 AM for 10 min (weather‑permitting).";
+    if(/schedule|when|next run|every other day/.test(t)) return "Schedule: daily at 5:00 AM for 10 minutes. Say ‘change schedule’ to adjust.";
+    if(/leak|burst|pressure/.test(t)) return "No active leaks detected. I’ll watch pressure and flow, master Wilson.";
+    if(/tip|advice|water|overwater|dry/.test(t)) return "Water early morning; aim 1–1.5 inches/week. Look for dull, folding blades = stress.";
+    if(/who|astra|about you|controller/.test(t)) return "I’m Astra — your pro sprinkler tech. I love healthy lawns and efficient watering.";
+    return "Noted. I can check status, schedules, and tips. Try: ‘What’s my watering status?’";
+  }
+
+  async function ask(q){
+    if(!q) return;
+    showText("Running diagnostics…");
+    if(USE_BACKEND){
+      try{
+        const r = await fetch(ASK_URL+'?q='+encodeURIComponent(q), {mode:'cors'});
+        if(r.ok){ const j = await r.json(); const answer = (j.answer||'').trim() || brainReply(q); return speak(answer); }
+      }catch(e){ /* fallthrough */ }
+    }
+    // Offline fallback
+    speak(brainReply(q));
+  }
+
+  // ---------- UI wiring ----------
+  const btnSpeak = document.getElementById('btnSpeak');
+  const btnWave = document.getElementById('btnWave');
+  const btnAsk = document.getElementById('btnAsk');
+  const txtAsk = document.getElementById('txtAsk');
+  const micBadge = document.getElementById('micBadge');
+  const micText = document.getElementById('micText');
+
+  btnSpeak.onclick = () => speak("Diagnostics nominal. I’m ready, master Wilson.");
+  btnWave.onclick  = () => { if (avatar){ const a=avatar; const start=a.rotation.y; let t=0; const iv=setInterval(()=>{ t+=16; a.rotation.y=start+0.1*Math.sin(t*0.01); if(t>1200){a.rotation.y=start; clearInterval(iv);} },16);} };
+  btnAsk.onclick   = () => { const v=txtAsk.value.trim(); if(v) ask(v); };
+  txtAsk.addEventListener('keydown', e=>{ if(e.key==='Enter'){ btnAsk.click(); }});
+
+  // ---------- Speech Recognition with indicators ----------
+  const btnListen = document.getElementById('btnListen');
+  let rec = null; let recSupported = false; 
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(SR){ rec = new SR(); rec.lang='en-US'; rec.interimResults=false; rec.maxAlternatives=1; recSupported = true; }
+
+  function setMic(state, label){
+    micBadge.classList.toggle('listening', state==='listening');
+    micText.textContent = label || (state==='listening'?'listening…':'idle');
+  }
+
+  if(!recSupported){
+    btnListen.disabled = true; setMic('idle','unsupported');
+  }else{
+    rec.onstart = ()=>{ setMic('listening'); showText('Listening…'); };
+    rec.onend   = ()=>{ setMic('idle'); };
+    rec.onerror = ()=>{ setMic('idle','error'); };
+    rec.onresult= (e)=>{ const text = e.results[0][0].transcript; txtAsk.value = text; ask(text); };
+
+    // Press-and-hold, mobile friendly
+    const start = ()=>{ try{ rec.start(); }catch{} };
+    const stop  = ()=>{ try{ rec.stop(); }catch{} };
+    btnListen.addEventListener('pointerdown', start);
+    btnListen.addEventListener('pointerup', stop);
+    btnListen.addEventListener('pointerleave', stop);
+    // Keyboard shortcut: Space to talk
+    window.addEventListener('keydown', (e)=>{ if(e.code==='Space' && !e.repeat){ start(); }});
+    window.addEventListener('keyup',   (e)=>{ if(e.code==='Space'){ stop(); }});
+  }
+
+  // ---------- Teach / Snapshot / Pair (safe fallbacks) ----------
+  async function teachFact(s){
+    if(!USE_BACKEND) return speak('Noted for this session.');
+    try{ const r = await fetch(TEACH_URL,{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({text:s})}); if(r.ok) return speak('Saved.'); }catch(e){}
+    speak('Noted for this session.');
+  }
+  async function snapshot(label){ if(!USE_BACKEND) throw new Error('camera offline'); const u = CAMERA_BASE + '/snapshot?label=' + encodeURIComponent(label||'unlabeled'); const r = await fetch(u); const j = await r.json(); if(!j.ok) throw new Error(j.error||'snapshot failed'); return j.path; }
+  async function savePair(text,label){ if(!USE_BACKEND) throw new Error('pair api offline'); const r=await fetch(PAIR_URL,{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({text,label})}); const j=await r.json(); if(!j.ok) throw new Error(j.error||'pair failed'); return j; }
+
+  document.getElementById('btnTeach').onclick = () => { const v=document.getElementById('txtTeach').value.trim(); if(v) teachFact(v); };
+  document.getElementById('btnSnapshot').onclick = async ()=>{ const label=document.getElementById('txtLabel').value.trim()||'unlabeled'; try{ await snapshot(label); speak('Snapshot saved.'); }catch(e){ alert(e.message); }};
+  document.getElementById('btnPair').onclick = async ()=>{ const text=document.getElementById('txtTranscript').value.trim(); const label=document.getElementById('txtPairLabel').value.trim()||'unlabeled'; if(!text) return alert('Please capture or type a fact first.'); try{ await savePair(text,label); speak('Paired and saved.'); }catch(e){ alert(e.message); }};
+
+  // Mic training (modal)
+  const modal = document.getElementById('modal');
+  document.getElementById('btnInteract').onclick = ()=> modal.classList.add('show');
+  document.getElementById('closeModal').onclick  = ()=> modal.classList.remove('show');
+  modal.querySelector('.backdrop').onclick       = ()=> modal.classList.remove('show');
+
+  let recTrain=null, asrStatus=document.getElementById('asrStatus');
+  if(SR){ recTrain = new SR(); recTrain.lang='en-US'; recTrain.interimResults=false; recTrain.maxAlternatives=1;
+    recTrain.onstart = ()=> asrStatus.textContent='listening…';
+    recTrain.onend   = ()=> asrStatus.textContent='idle';
+    recTrain.onerror = ()=> asrStatus.textContent='error';
+    recTrain.onresult= e => { const text=e.results[0][0].transcript; document.getElementById('txtTranscript').value = text.startsWith('Fact:')?text:('Fact: '+text); speak('Captured.'); };
+  } else {
+    document.getElementById('btnHoldToTrain').disabled = true; asrStatus.textContent='unsupported';
+  }
+
+  // ---------- Tick ----------
+  const clock = new THREE.Clock();
+  function tick(){ const dt = clock.getDelta(); if (mixer) mixer.update(dt); visor.material.uniforms.uTime.value += dt; composer.render(); requestAnimationFrame(tick); }
+  tick();
+})();
+</script>
+</body>
+</html>

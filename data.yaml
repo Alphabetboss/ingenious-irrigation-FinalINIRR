@@ -1,28 +1,12 @@
-﻿# YOLOv8 dataset config — Ingenious Irrigation (Merged_Dataset)
-
-# Root containing images/ and labels/ subfolders
-path: C:/Users/alpha/OneDrive/Desktop/IngeniousIrrigation/dataset_raw/dataset/Merged_Dataset
-
-# Relative to "path"
+﻿path: dataset/yolo
 train: images/train
 val: images/val
-# If you have test images, uncomment:
-test: images/test
-
-# Number of classes and their names (edit to match your labels)
-# START with this list; we can adjust after a quick scan in step 2.
-nc: 10
 names:
-  0: grass
-  1: water
-  2: dead_grass
-  3: mud
-  4: standing_water
-  5: healthy_grass
-  6: dry_patch
-  7: moss
-  8: mulch
-  9: sprinkler_leak
-
-description: Ingenious Irrigation — unified yard/plant health + water signals
-version: 1.2
+  - healthy_grass
+  - dead_grass
+  - puddle
+  - mud
+  - sprinkler_head
+  - leak
+  - bare_soil
+  - weed_cluster

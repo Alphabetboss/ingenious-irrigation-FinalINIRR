@@ -1,0 +1,16 @@
+<script>
+  // ...existing code...
+  const txtAsk = document.getElementById('txtAsk');
+  const btnAsk = document.getElementById('btnAsk');
+
+  function syncAskDisabled(){ btnAsk.disabled = !txtAsk.value.trim(); }
+  txtAsk.addEventListener('input', syncAskDisabled);
+  window.addEventListener('load', syncAskDisabled);
+
+  btnAsk.onclick = () => {
+    const v = txtAsk.value.trim();
+    if (!v) { alert("Type a question for Astra first."); return; }
+    ask(v);
+  };
+  // ...existing code...
+</script>
