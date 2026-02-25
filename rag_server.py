@@ -1,100 +1,64 @@
-import os
-import logging
+# rag_server.py — retrieval-augmented Q&A over your saved facts
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from dotenv import load_dotenv
+import chromadb
 from sentence_transformers import SentenceTransformer
-import faiss
-import numpy as np
+from pathlib import Path
+from datetime import datetime
 
-# ðŸ”§ Load environment variables
-load_dotenv()
-RAG_PORT = int(os.getenv("RAG_PORT", 5052))
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+DATA_DIR = Path("data/knowledge")
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-# ðŸ“œ Logging
-logging.basicConfig(
-    level=getattr(logging, LOG_LEVEL.upper(), logging.INFO),
-    format="%(asctime)s [%(levelname)s] %(message)s"
-)
-logger = logging.getLogger("RAGServer")
+embedder = SentenceTransformer("all-MiniLM-L6-v2")
+chroma_client = chromadb.PersistentClient(path=str(DATA_DIR / "chroma"))
+collection = chroma_client.get_or_create_collection(name="ii_kb", metadata={"hnsw:space":"cosine"})
 
-# ðŸ§  Load model and build index
-documents = [
-    "Sprinkler zones should be adjusted based on sunlight exposure.",
-    "Grass health can be monitored using NDVI analysis.",
-    "Leaks often appear as dark patches in infrared snapshots.",
-    "Voice commands can trigger zone overrides or analysis.",
-    "Watering schedules should adapt to seasonal changes."
-]
-
-model = SentenceTransformer("all-MiniLM-L6-v2")
-doc_embeddings = model.encode(documents)
-index = faiss.IndexFlatL2(doc_embeddings.shape[1])
-index.add(np.array(doc_embeddings))
-
-# ðŸ” RAG query logic
-
-
-def query_rag_system(query: str) -> dict:
-    if query.lower() == "ping":
-        return {"ok": True, "response": "pong"}
-    try:
-        query_vec = model.encode([query])
-        D, I = index.search(np.array(query_vec), k=1)
-        best_match = documents[I[0][0]]
-        return {"ok": True, "response": best_match}
-    except Exception as e:
-        logger.error(f"RAG search error: {e}")
-        return {"ok": False, "error": str(e)}
-
-
-# ðŸ—ï¸ Initialize Flask app
 app = Flask(__name__)
-CORS(app)
+CORS(app)  # allow calls from your 3D page or Flask UI
 
-# ðŸ©º Health check
+def retrieve(query: str, k: int = 5):
+    qvec = embedder.encode([query]).tolist()[0]
+    res = collection.query(
+        query_embeddings=[qvec],
+        n_results=k,
+        include=["documents", "metadatas", "distances"]
+    )
+    docs  = res.get("documents", [[]])[0]
+    metas = res.get("metadatas", [[]])[0]
+    dists = res.get("distances", [[]])[0]
+    return list(zip(docs, metas, dists))
 
+def simple_answer(query: str, contexts):
+    # Transparent “grounded” response (no cloud call).
+    lines = [f"Q: {query}", "Context used:"]
+    for i, (doc, meta, dist) in enumerate(contexts, 1):
+        ctype = (meta or {}).get("type", "fact")
+        lines.append(f"{i}. ({ctype}) {doc}")
+    lines.append("")
+    lines.append("Answer (grounded):")
+    if not contexts:
+        lines.append("I don’t have enough info recorded yet. Please add more facts or answers.")
+    else:
+        stitched = " ".join(doc for doc, _, _ in contexts[:2])
+        lines.append(stitched)
+    return "\n".join(lines)
 
 @app.get("/ask")
-def health_check():
-    return jsonify({"ok": True, "message": "RAG server is alive"})
-
-# ðŸ’¬ Query endpoint
-
-
-@app.post("/ask")
 def ask():
-    data = request.get_json(silent=True) or {}
-    query = (data.get("query") or "").strip()
-
-    if not query:
-        return jsonify({"ok": False, "error": "Missing 'query'"}), 400
-
-    result = query_rag_system(query)
-    return jsonify(result)
-
+    q = (request.args.get("q") or "").strip()
+    if not q:
+        return jsonify({"ok": False, "error": "missing q"}), 400
+    ctx = retrieve(q, k=5)
+    ans = simple_answer(q, ctx)
+    return jsonify({
+        "ok": True,
+        "answer": ans,
+        "used": [{"text": d, "type": (m or {}).get("type","fact"), "score": float(1 - dist)} for d,m,dist in ctx]
+    })
 
 @app.get("/")
 def index():
-    return jsonify({
-        "ok": True,
-        "message": "Welcome to the RAG server",
-        "endpoints": {
-            "health": "/ask (GET)",
-            "query": "/ask (POST)"
-        }
-    })
-# ðŸš€ Startup banner
+    return "rag_server up — GET /ask?q=..."
 
-
-def print_banner():
-    print(f"\nðŸ“¡ RAG Server running at http://127.0.0.1:{RAG_PORT}")
-    print("ðŸ©º Health: GET /ask")
-    print("ðŸ’¬ Query: POST /ask\n")
-
-
-# ðŸ Run server
 if __name__ == "__main__":
-    print_banner()
-    app.run(host="127.0.0.1", port=RAG_PORT, debug=False)
+    app.run(port=5052, debug=True)

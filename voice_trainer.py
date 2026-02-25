@@ -1,15 +1,8 @@
-# voice_trainer.py  â€”  Push-to-talk (Spacebar) + local knowledge capture + camera labels
+# voice_trainer.py  —  Push-to-talk (Spacebar) + local knowledge capture + camera labels
 # Hold SPACE to record; release to transcribe & save (question/answer/fact/command).
 # Commands you can say: "snapshot leak", "label oversaturated", etc.
 
-import os
-import re
-import json
-import time
-import threading
-import queue
-import sys
-import requests
+import os, re, json, time, threading, queue, sys, requests
 from pathlib import Path
 import numpy as np
 import sounddevice as sd
@@ -25,10 +18,8 @@ DATA_DIR = Path("data/knowledge")
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 KB_PATH = DATA_DIR / "knowledge.jsonl"
 
-# camera_server.py base URL
-CAMERA_BASE = os.getenv("II_CAMERA_BASE", "http://127.0.0.1:5051")
-# "base" | "small" | "medium" | etc.
-WHISPER_MODEL = os.getenv("II_WHISPER", "base")
+CAMERA_BASE = os.getenv("II_CAMERA_BASE", "http://127.0.0.1:5051")  # camera_server.py base URL
+WHISPER_MODEL = os.getenv("II_WHISPER", "base")  # "base" | "small" | "medium" | etc.
 SAMPLE_RATE = 16000
 CHANNELS = 1
 MAX_TALK_SECONDS = 30         # hard cap per utterance
@@ -36,22 +27,19 @@ SILENCE_TAIL_SECONDS = 0.6    # trim trailing silence when releasing Space
 # ============================================
 
 # ---------- Audio setup (device picker) ----------
-
-
 def pick_input_device():
     pref = os.getenv("II_INPUT_DEVICE", "").strip().lower()
     try:
         devices = sd.query_devices()
     except Exception as e:
-        print("âŒ Could not query audio devices:", e)
-        print("â€¢ Check Windows microphone privacy settings (Microphone access for Desktop apps).")
+        print("❌ Could not query audio devices:", e)
+        print("• Check Windows microphone privacy settings (Microphone access for Desktop apps).")
         sys.exit(1)
 
     # Default input if set and valid
     default_in = None
     try:
-        default_in = sd.default.device[0] if isinstance(
-            sd.default.device, (list, tuple)) else sd.default.device
+        default_in = sd.default.device[0] if isinstance(sd.default.device, (list, tuple)) else sd.default.device
     except Exception:
         pass
 
@@ -70,37 +58,28 @@ def pick_input_device():
         if max_in and max_in > 0:
             return i
 
-    print("âŒ No input (microphone) device found.")
+    print("❌ No input (microphone) device found.")
     sys.exit(1)
 
-
 INPUT_DEVICE = pick_input_device()
-print("ðŸŽ¤ Using input device:", INPUT_DEVICE,
-      sd.query_devices()[INPUT_DEVICE]["name"])
+print("🎤 Using input device:", INPUT_DEVICE, sd.query_devices()[INPUT_DEVICE]["name"])
 
 # ---------- STT, embeddings, DB, TTS ----------
-print("ðŸ”¡ Loading Whisper model:", WHISPER_MODEL)
-# uses CPU by default; set env for GPU if you want
-asr = WhisperModel(WHISPER_MODEL)
+print("🔡 Loading Whisper model:", WHISPER_MODEL)
+asr = WhisperModel(WHISPER_MODEL)  # uses CPU by default; set env for GPU if you want
 
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
 chroma_client = chromadb.PersistentClient(path=str(DATA_DIR / "chroma"))
-collection = chroma_client.get_or_create_collection(
-    name="ii_kb", metadata={"hnsw:space": "cosine"})
+collection = chroma_client.get_or_create_collection(name="ii_kb", metadata={"hnsw:space":"cosine"})
 
 tts = pyttsx3.init()
-
-
 def speak(text: str):
     try:
-        tts.say(text)
-        tts.runAndWait()
+        tts.say(text); tts.runAndWait()
     except Exception:
         pass
 
 # ---------- Knowledge helpers ----------
-
-
 def intent_of(text: str):
     lower = text.lower().strip()
 
@@ -109,33 +88,29 @@ def intent_of(text: str):
     if m:
         return ("command", {"action": m.group(1), "label": m.group(2)})
 
-    if lower.endswith("?") or lower.startswith(("what", "why", "how", "when", "where", "who")):
+    if lower.endswith("?") or lower.startswith(("what","why","how","when","where","who")):
         return ("question", {})
-    if lower.startswith(("answer:", "ans:", "the answer is")):
+    if lower.startswith(("answer:","ans:","the answer is")):
         return ("answer", {})
-    if lower.startswith(("fact:", "note:", "remember that", "stat:", "statement:")) or "remember that" in lower:
+    if lower.startswith(("fact:","note:","remember that","stat:","statement:")) or "remember that" in lower:
         return ("fact", {})
     if re.search(r"\d", lower):  # numbers often indicate stats
         return ("fact", {})
     return ("fact", {})  # default to storing declarative knowledge
-
 
 def store_knowledge(entry):
     KB_PATH.parent.mkdir(parents=True, exist_ok=True)
     with KB_PATH.open("a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
     doc_id = f"{entry['timestamp']}_{entry['type']}_{hash(entry['text'])%10**8}"
-    collection.upsert(ids=[doc_id], documents=[
-                      entry["text"]], metadatas=[{"type": entry["type"]}])
-
+    collection.upsert(ids=[doc_id], documents=[entry["text"]], metadatas=[{"type": entry["type"]}])
 
 def do_camera_command(cmd):
     try:
         label = cmd["label"]
-        r = requests.get(f"{CAMERA_BASE}/snapshot",
-                         params={"label": label}, timeout=5)
+        r = requests.get(f"{CAMERA_BASE}/snapshot", params={"label": label}, timeout=5)
         if r.ok:
-            print("ðŸ“¸ Snapshot saved:", r.json().get("path"))
+            print("📸 Snapshot saved:", r.json().get("path"))
             speak(f"Saved {label} snapshot.")
         else:
             print("Snapshot error:", r.text)
@@ -144,20 +119,17 @@ def do_camera_command(cmd):
         print("Camera command error:", e)
         speak("Could not reach camera.")
 
-
 # ---------- Recording: push-to-talk with Space ----------
 recording = threading.Event()
 audio_buf = []
 stream = None
 buf_lock = threading.Lock()
 
-
 def audio_callback(indata, frames, time_info, status):
     if status:
         print("Audio status:", status)
     with buf_lock:
         audio_buf.append(indata.copy())
-
 
 def start_recording():
     global stream, audio_buf
@@ -173,15 +145,13 @@ def start_recording():
                             device=INPUT_DEVICE)
     stream.start()
     recording.set()
-    print("ðŸŽ™ï¸ Recordingâ€¦ (hold Space)")
-
+    print("🎙️ Recording… (hold Space)")
 
 def stop_recording_and_process():
     global stream
     if stream:
         try:
-            stream.stop()
-            stream.close()
+            stream.stop(); stream.close()
         except Exception:
             pass
     recording.clear()
@@ -189,9 +159,9 @@ def stop_recording_and_process():
     # Gather audio
     with buf_lock:
         if not audio_buf:
-            print("â€¦no audio captured.")
+            print("…no audio captured.")
             return
-        data = np.concatenate(audio_buf, axis=0)[:, 0]  # mono float32
+        data = np.concatenate(audio_buf, axis=0)[:,0]  # mono float32
 
     # Trim tail silence (simple fixed tail)
     tail = int(SILENCE_TAIL_SECONDS * SAMPLE_RATE)
@@ -203,15 +173,15 @@ def stop_recording_and_process():
     data = data[:max_len]
 
     # Transcribe
-    print("ðŸ§  Transcribingâ€¦")
+    print("🧠 Transcribing…")
     segments, _ = asr.transcribe(data, language="en")
     text = " ".join(s.text.strip() for s in segments if s.text).strip()
     if not text:
-        print("â€¦nothing recognized.")
+        print("…nothing recognized.")
         speak("I didn't catch that.")
         return
 
-    print(f"ðŸ‘‚ Heard: {text}")
+    print(f"👂 Heard: {text}")
     typ, extra = intent_of(text)
     ts = time.time()
     entry = {"timestamp": ts, "type": typ, "text": text}
@@ -223,7 +193,6 @@ def stop_recording_and_process():
     store_knowledge(entry)
     speak(f"Captured {typ}.")
 
-
 def on_press(key):
     try:
         if key == keyboard.Key.space and not recording.is_set():
@@ -231,25 +200,22 @@ def on_press(key):
     except Exception:
         pass
 
-
 def on_release(key):
     try:
         if key == keyboard.Key.space and recording.is_set():
-            print("ðŸ›‘ Released Space â€” processingâ€¦")
+            print("🛑 Released Space — processing…")
             stop_recording_and_process()
     except Exception:
         pass
 
-
 def main():
-    print("ðŸŸ¢ Push-to-talk ready. Hold SPACE to speak; release to save.")
-    print("   Commands: say â€œsnapshot leakâ€ or â€œlabel oversaturatedâ€.")
+    print("🟢 Push-to-talk ready. Hold SPACE to speak; release to save.")
+    print("   Commands: say “snapshot leak” or “label oversaturated”.")
     with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
         try:
             listener.join()
         except KeyboardInterrupt:
             pass
-
 
 if __name__ == "__main__":
     main()

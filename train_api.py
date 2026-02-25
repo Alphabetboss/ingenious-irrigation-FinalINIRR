@@ -1,52 +1,41 @@
-# train_api.py â€” pair a spoken/typed fact with a labeled snapshot
+# train_api.py — pair a spoken/typed fact with a labeled snapshot
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pathlib import Path
-import time
-import json
-import requests
-import csv
+import time, json, requests, csv
 
 import chromadb
 from sentence_transformers import SentenceTransformer
 
-DATA_DIR = Path("data/knowledge")
-DATA_DIR.mkdir(parents=True, exist_ok=True)
+DATA_DIR = Path("data/knowledge"); DATA_DIR.mkdir(parents=True, exist_ok=True)
 KB_PATH = DATA_DIR / "knowledge.jsonl"
-PAIR_DIR = Path("data/training")
-PAIR_DIR.mkdir(parents=True, exist_ok=True)
+PAIR_DIR = Path("data/training"); PAIR_DIR.mkdir(parents=True, exist_ok=True)
 PAIR_FILE = PAIR_DIR / "pairs.csv"
 
 CAMERA_BASE = "http://127.0.0.1:5051"
 
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
 chroma = chromadb.PersistentClient(path=str(DATA_DIR / "chroma"))
-collection = chroma.get_or_create_collection(
-    name="ii_kb", metadata={"hnsw:space": "cosine"})
+collection = chroma.get_or_create_collection(name="ii_kb", metadata={"hnsw:space":"cosine"})
 
 app = Flask(__name__)
 CORS(app)
-
 
 def store_text(text: str, typ: str = "fact"):
     entry = {"timestamp": time.time(), "type": typ, "text": text}
     with KB_PATH.open("a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
     doc_id = f"{entry['timestamp']}_{typ}"
-    collection.upsert(ids=[doc_id], documents=[text],
-                      metadatas=[{"type": typ}])
+    collection.upsert(ids=[doc_id], documents=[text], metadatas=[{"type": typ}])
     return entry
 
-
 def take_snapshot(label: str):
-    r = requests.get(f"{CAMERA_BASE}/snapshot",
-                     params={"label": label}, timeout=8)
+    r = requests.get(f"{CAMERA_BASE}/snapshot", params={"label": label}, timeout=8)
     r.raise_for_status()
     j = r.json()
     if not j.get("ok"):
         raise RuntimeError(j.get("error", "snapshot failed"))
     return j["path"]
-
 
 @app.post("/pair")
 def pair():
@@ -75,11 +64,10 @@ def pair():
 
     return jsonify({"ok": True, "snapshot_path": path})
 
-
 @app.get("/")
 def home():
-    return "train_api up â€” POST /pair {text, label}"
-
+    return "train_api up — POST /pair {text, label}"
 
 if __name__ == "__main__":
     app.run(port=5055, debug=True)
+

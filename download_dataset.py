@@ -22,4 +22,4 @@ for query in queries:
     print(f"Downloading: {query}")
     downloader.download(query, limit=150)
 
-print("âœ… Download complete! Images saved in dataset_raw folder.")
+print("✅ Download complete! Images saved in dataset_raw folder.")
