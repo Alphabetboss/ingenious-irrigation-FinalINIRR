@@ -1,13 +1,29 @@
-train: ../train/images
-val: ../valid/images
-test: ../test/images
+# YOLOv8 configuration file for Ingenious Irrigation plant health detection
 
-nc: 1
-names: ['Standing Water']
+# Path to dataset root directory (update if different)
+path: C:/Users/alpha/OneDrive/Desktop/IngeniousIrrigation/health_detection/dataset/Grass_Detection
 
-roboflow:
-  workspace: water-leakage-detection
-  project: water-leakage
-  version: 4
-  license: CC BY 4.0
-  url: https://universe.roboflow.com/water-leakage-detection/water-leakage/dataset/4
+# Subdirectories containing the training and validation sets
+train: images/train
+val: images/val
+
+# Class names and IDs (ensure these match your Roboflow or YOLO label classes)
+names:
+  0: grass
+  1: water
+  2: dead_grass
+  3: mud
+  4: standing_water
+  5: healthy_grass
+  6: dry_patch
+  7: moss
+  8: mulch
+  9: sprinkler_leak
+
+# Total number of classes (should match number of entries in `names`)
+nc: 10
+
+# Optional: extra metadata for logging/debugging
+description: Plant health detection for AI-powered irrigation system
+version: 1.0
+author: master Wilson
