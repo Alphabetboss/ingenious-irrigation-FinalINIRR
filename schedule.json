@@ -1,0 +1,8 @@
+{
+  "zones": {
+    "1": {
+      "minutes": 10,
+      "enabled": true
+    }
+  }
+}

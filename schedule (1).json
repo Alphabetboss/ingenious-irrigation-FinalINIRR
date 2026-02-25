@@ -1,0 +1,8 @@
+{
+  "enabled": true,
+  "zone": 1,
+  "start_time": "05:00",
+  "duration_min": 10,
+  "frequency": "daily",
+  "every_x_days": null
+}
