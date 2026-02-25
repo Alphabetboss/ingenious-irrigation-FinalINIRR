@@ -1,6 +1,13 @@
-train: images/train
-val: images/val
-test: images/test
+train: ../train/images
+val: ../valid/images
+test: ../test/images
 
-nc: 3
-names: ['grass', 'water', 'dead_grass']
+nc: 1
+names: ['Standing Water']
+
+roboflow:
+  workspace: water-leakage-detection
+  project: water-leakage
+  version: 4
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/water-leakage-detection/water-leakage/dataset/4
